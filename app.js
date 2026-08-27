@@ -1,14 +1,15 @@
 /**
  * =========================================================================
- * PORRA QUINIELA LALIGA 1X2 - JAVASCRIPT FRONTEND (v3.0)
+ * PORRA QUINIELA LALIGA 1X2 - JAVASCRIPT FRONTEND (v3.1)
  * Sistema: Cada jornada tiene 3 partidos.
  * Puntuación: 1 acierto = 1 pt | 2 aciertos = 3 pts | 3 aciertos (Pleno) = 5 pts
+ * Privacidad: Los pronósticos de los demás jugadores permanecen ocultos (🔒)
  * =========================================================================
  */
 
 // ⚠️ PEGA AQUÍ LA URL DE TU APLICACIÓN WEB DE GOOGLE APPS SCRIPT:
 // Ejemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpy93XmLhwfVr5Y1MnyK576lACu9eThHfTRwdXx5tszhF8VYMnNKYyPHiAwUHKlxAm/exec";
+const GOOGLE_SCRIPT_URL = "";
 
 // Usuario Administrador Base
 const DEFAULT_ADMIN = {
@@ -63,18 +64,18 @@ let state = {
   selectedJornadaId: "j1",
   predictions: {
     "u_carlos": {
-      "j1": { "m1_1": "1", "m1_2": "X", "m1_3": "1" }, // 3 aciertos = 5 pts
-      "j2": { "m2_1": "1", "m2_2": "1", "m2_3": "1" }, // 2 aciertos = 3 pts
+      "j1": { "m1_1": "1", "m1_2": "X", "m1_3": "1" },
+      "j2": { "m2_1": "1", "m2_2": "1", "m2_3": "1" },
       "j3": { "m3_1": "1", "m3_2": "X", "m3_3": "1" }
     },
     "u_laura": {
-      "j1": { "m1_1": "1", "m1_2": "1", "m1_3": "1" }, // 2 aciertos = 3 pts
-      "j2": { "m2_1": "2", "m2_2": "1", "m2_3": "1" }, // 3 aciertos = 5 pts
+      "j1": { "m1_1": "1", "m1_2": "1", "m1_3": "1" },
+      "j2": { "m2_1": "2", "m2_2": "1", "m2_3": "1" },
       "j3": { "m3_1": "X", "m3_2": "1", "m3_3": "2" }
     },
     "u_mikel": {
-      "j1": { "m1_1": "2", "m1_2": "X", "m1_3": "2" }, // 1 acierto = 1 pt
-      "j2": { "m2_1": "X", "m2_2": "X", "m2_3": "1" }, // 1 acierto = 1 pt
+      "j1": { "m1_1": "2", "m1_2": "X", "m1_3": "2" },
+      "j2": { "m2_1": "X", "m2_2": "X", "m2_3": "1" },
       "j3": { "m3_1": "1", "m3_2": "1", "m3_3": "1" }
     }
   }
@@ -665,12 +666,11 @@ function renderRankingTable() {
     return;
   }
 
-  // Calcular puntos acumulados a través de todas las jornadas
   const stats = players.map(user => {
     let totalPoints = 0;
-    let plenos = 0; // 3 aciertos (5p)
-    let dobles = 0; // 2 aciertos (3p)
-    let simples = 0; // 1 acierto (1p)
+    let plenos = 0;
+    let dobles = 0;
+    let simples = 0;
     let jornadasCount = 0;
 
     (state.jornadas || []).forEach(j => {
@@ -737,16 +737,27 @@ function renderQuinielaMatrix() {
   let theadHtml = `<thead><tr><th>#</th><th>Partido (3 por Jornada)</th><th>Resultado Real</th>`;
   players.forEach(p => {
     const isMe = currentUser && currentUser.id === p.id;
+    const isAdmin = currentUser && currentUser.role === "admin";
     const userEvaluation = evaluateUserJornada(p.id, activeJornada);
     
-    let tagClass = "jornada-pts-0";
-    if (userEvaluation.points === 5) tagClass = "jornada-pts-5";
-    else if (userEvaluation.points === 3) tagClass = "jornada-pts-3";
-    else if (userEvaluation.points === 1) tagClass = "jornada-pts-1";
+    // Si la jornada ha concluido o si soy yo o si soy admin, mostrar puntos conseguidos
+    let puntosHtml = "";
+    if (isMe || isAdmin || userEvaluation.isFinished) {
+      let tagClass = "jornada-pts-0";
+      if (userEvaluation.points === 5) tagClass = "jornada-pts-5";
+      else if (userEvaluation.points === 3) tagClass = "jornada-pts-3";
+      else if (userEvaluation.points === 1) tagClass = "jornada-pts-1";
+
+      puntosHtml = `<span class="jornada-pts-tag ${tagClass}">+${userEvaluation.points} pts (${userEvaluation.hits}/3)</span>`;
+    } else {
+      // Si está pendiente, no mostrar los aciertos provisionales a otros
+      const hasPredictions = state.predictions[p.id] && state.predictions[p.id][activeJornada.id] && Object.keys(state.predictions[p.id][activeJornada.id]).length > 0;
+      puntosHtml = `<span class="jornada-pts-tag ${hasPredictions ? 'jornada-pts-1' : 'jornada-pts-0'}">${hasPredictions ? '🔒 Apostado' : '⏳ Pendiente'}</span>`;
+    }
 
     theadHtml += `<th>
       <div>${p.avatar || '👤'} ${p.name} ${isMe ? '(Tú)' : ''}</div>
-      <span class="jornada-pts-tag ${tagClass}">+${userEvaluation.points} pts (${userEvaluation.hits}/3)</span>
+      ${puntosHtml}
     </th>`;
   });
   theadHtml += `</tr></thead>`;
@@ -771,14 +782,25 @@ function renderQuinielaMatrix() {
       const userPreds = (state.predictions[p.id] && state.predictions[p.id][activeJornada.id]) || {};
       const predSign = userPreds[match.id];
 
+      const isMe = currentUser && currentUser.id === p.id;
+      const isAdmin = currentUser && currentUser.role === "admin";
+
       if (!predSign) {
         tbodyHtml += `<td><span class="text-muted">-</span></td>`;
       } else {
-        let badgeClass = "sign-pending";
-        if (hasResult) {
-          badgeClass = (String(predSign).trim() === String(match.signResult).trim()) ? "sign-hit" : "sign-miss";
+        // REGLA DE PRIVACIDAD:
+        // Solo el propio jugador o el Admin pueden ver el pronóstico antes o durante.
+        // Los demás jugadores ven un icono de candado 🔒 mientras el partido no tenga resultado.
+        if (isMe || isAdmin || hasResult) {
+          let badgeClass = "sign-pending";
+          if (hasResult) {
+            badgeClass = (String(predSign).trim() === String(match.signResult).trim()) ? "sign-hit" : "sign-miss";
+          }
+          tbodyHtml += `<td><span class="sign-badge ${badgeClass}">${predSign}</span></td>`;
+        } else {
+          // Oculto para otros participantes antes de jugarse
+          tbodyHtml += `<td><span class="sign-badge sign-hidden" title="Pronóstico privado hasta que se juegue el partido">🔒</span></td>`;
         }
-        tbodyHtml += `<td><span class="sign-badge ${badgeClass}">${predSign}</span></td>`;
       }
     });
 
@@ -871,7 +893,7 @@ async function saveMyQuiniela() {
   saveLocalState();
   renderRankingTable();
   renderQuinielaMatrix();
-  showToast(`¡Pronósticos de ${activeJornada.name} guardados!`);
+  showToast(`¡Pronósticos de ${activeJornada.name} guardados en privado!`);
 
   await sendToCloud("savePredictions", {
     userId: currentUser.id,

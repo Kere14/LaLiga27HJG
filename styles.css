@@ -744,6 +744,14 @@ body {
   border: 1px solid rgba(56, 189, 248, 0.5);
 }
 
+.sign-hidden {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  font-size: 0.9rem;
+  cursor: help;
+}
+
 .jornada-pts-tag {
   display: inline-block;
   font-size: 0.82rem;
