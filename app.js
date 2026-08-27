@@ -9,7 +9,7 @@
 
 // ⚠️ PEGA AQUÍ LA URL DE TU APLICACIÓN WEB DE GOOGLE APPS SCRIPT:
 // Ejemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpy93XmLhwfVr5Y1MnyK576lACu9eThHfTRwdXx5tszhF8VYMnNKYyPHiAwUHKlxAm/exec";
+const GOOGLE_SCRIPT_URL = "";
 
 // Usuario Administrador Base
 const DEFAULT_ADMIN = {
@@ -372,7 +372,7 @@ function executeLogin() {
     if (passwordInput) passwordInput.value = "";
     loginUserSuccess(user);
   } else {
-    alert(`❌ Usuario o contraseña incorrectos.\n\nPrueba:\n- Usuario: admin\n- Contraseña: admin123\n\nO pulsa arriba en 'Registrarse'.`);
+    alert("❌ Usuario o contraseña incorrectos. Por favor, verifica tus datos o regístrate en la pestaña superior.");
   }
 }
 
@@ -446,14 +446,6 @@ function initAuthUI() {
 
   const btnLogin = document.getElementById("btn-login-submit");
   if (btnLogin) btnLogin.addEventListener("click", executeLogin);
-
-  const btnQuickAdmin = document.getElementById("btn-quick-admin");
-  if (btnQuickAdmin) {
-    btnQuickAdmin.addEventListener("click", () => {
-      const adminUser = state.users.find(u => String(u.username).toLowerCase() === "admin") || DEFAULT_ADMIN;
-      loginUserSuccess(adminUser);
-    });
-  }
 
   const btnReg = document.getElementById("btn-reg-submit");
   if (btnReg) btnReg.addEventListener("click", executeRegister);

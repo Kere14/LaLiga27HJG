@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Porra Quiniela LaLiga ⚽ 1X2 por Jornadas</title>
-  <link rel="stylesheet" href="styles.css?v=3.1">
+  <link rel="stylesheet" href="styles.css?v=3.2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -47,17 +47,13 @@
       <form id="form-login" class="form-stacked mt-3" onsubmit="return false;">
         <div class="form-group">
           <label for="login-username">Usuario</label>
-          <input type="text" id="login-username" class="form-input" placeholder="Ej: admin o tu usuario" autocomplete="username">
+          <input type="text" id="login-username" class="form-input" placeholder="Tu usuario" autocomplete="username">
         </div>
         <div class="form-group">
           <label for="login-password">Contraseña</label>
           <input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password">
         </div>
         <button type="button" id="btn-login-submit" class="btn btn-primary btn-lg w-100 mt-2">⚽ Entrar a la Porra</button>
-        
-        <button type="button" id="btn-quick-admin" class="btn btn-outline btn-sm w-100 mt-2" style="border-color: #f59e0b; color: #fbbf24;">
-          👑 Acceso Rápido como Administrador
-        </button>
       </form>
 
       <!-- Formulario Registro -->
@@ -80,12 +76,6 @@
         </div>
         <button type="button" id="btn-reg-submit" class="btn btn-success btn-lg w-100 mt-2">✨ Crear Mi Cuenta</button>
       </form>
-
-      <div class="auth-hint mt-3">
-        <p><strong>🔑 Cuentas:</strong></p>
-        <p>👑 <strong>Admin:</strong> <code>admin</code> / <code>admin123</code></p>
-        <p>👤 <strong>Jugadores:</strong> pulsa en <em>Registrarse</em>.</p>
-      </div>
     </div>
   </div>
 
@@ -349,6 +339,6 @@
     </footer>
   </div>
 
-  <script src="app.js?v=3.1"></script>
+  <script src="app.js?v=3.2"></script>
 </body>
 </html>
