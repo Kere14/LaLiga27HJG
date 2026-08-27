@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Porra Quiniela LaLiga ⚽ 1X2</title>
-  <link rel="stylesheet" href="styles.css?v=2.2">
+  <title>Porra Quiniela LaLiga ⚽ 1X2 por Jornadas</title>
+  <link rel="stylesheet" href="styles.css?v=3.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,18 +17,25 @@
     <span id="sync-loader-text">Sincronizando con Google Sheets...</span>
   </div>
 
-  <!-- PANTALLA / MODAL DE LOGIN -->
+  <!-- PANTALLA DE LOGIN -->
   <div id="auth-screen" class="auth-screen">
     <div class="auth-card card-glass">
       <div class="auth-header">
         <span class="logo-ball">⚽</span>
         <h2>Quiniela <span>LaLiga 1X2</span></h2>
-        <p class="subtitle">Inicia sesión o regístrate para acceder a la porra</p>
+        <p class="subtitle">3 partidos por jornada • Sistema especial de puntos</p>
       </div>
 
       <!-- Estado de conexión con Google Sheets -->
       <div id="connection-status-badge" class="connection-badge status-checking">
         <span>🔄 Comprobando conexión...</span>
+      </div>
+
+      <!-- Banner de puntuación -->
+      <div class="scoring-rules-banner mt-2">
+        <div class="scoring-pill"><strong>1 acierto:</strong> 1 pt</div>
+        <div class="scoring-pill"><strong>2 aciertos:</strong> 3 pts</div>
+        <div class="scoring-pill gold"><strong>3 aciertos:</strong> 5 pts 🌟</div>
       </div>
 
       <div class="auth-tabs mt-3">
@@ -48,7 +55,6 @@
         </div>
         <button type="button" id="btn-login-submit" class="btn btn-primary btn-lg w-100 mt-2">⚽ Entrar a la Porra</button>
         
-        <!-- Botón de acceso rápido para Administrador -->
         <button type="button" id="btn-quick-admin" class="btn btn-outline btn-sm w-100 mt-2" style="border-color: #f59e0b; color: #fbbf24;">
           👑 Acceso Rápido como Administrador
         </button>
@@ -75,11 +81,10 @@
         <button type="button" id="btn-reg-submit" class="btn btn-success btn-lg w-100 mt-2">✨ Crear Mi Cuenta</button>
       </form>
 
-      <!-- Pista de credenciales -->
       <div class="auth-hint mt-3">
-        <p><strong>🔑 Datos de acceso:</strong></p>
-        <p>👑 <strong>Admin:</strong> usuario: <code>admin</code> | clave: <code>admin123</code></p>
-        <p>👤 <strong>Jugadores:</strong> pulsa en la pestaña <em>Registrarse</em>.</p>
+        <p><strong>🔑 Cuentas:</strong></p>
+        <p>👑 <strong>Admin:</strong> <code>admin</code> / <code>admin123</code></p>
+        <p>👤 <strong>Jugadores:</strong> pulsa en <em>Registrarse</em>.</p>
       </div>
     </div>
   </div>
@@ -93,8 +98,8 @@
         <div class="logo">
           <span class="logo-ball">⚽</span>
           <div>
-            <h1>Quiniela <span>LaLiga 1X2</span></h1>
-            <p class="subtitle">Pronósticos estilo 1X2 y clasificación</p>
+            <h1>Porra <span>LaLiga 1X2</span></h1>
+            <p class="subtitle">3 partidos por jornada • (1=1pt, 2=3pts, 3=5pts)</p>
           </div>
         </div>
 
@@ -106,12 +111,27 @@
               <span id="header-user-role" class="user-badge-role">Jugador</span>
             </div>
           </div>
-          <button type="button" id="btn-refresh-data" class="btn btn-outline btn-sm" title="Recargar datos desde Google Sheets">🔄 Actualizar</button>
+          <button type="button" id="btn-refresh-data" class="btn btn-outline btn-sm" title="Recargar datos">🔄 Actualizar</button>
           <button type="button" id="btn-export-wa" class="btn btn-whatsapp btn-sm">📱 Compartir Ranking</button>
           <button type="button" id="btn-logout" class="btn btn-danger-outline btn-sm">🚪 Salir</button>
         </div>
       </div>
     </header>
+
+    <!-- SELECTOR GLOBAL DE JORNADA -->
+    <div class="jornada-bar-wrapper">
+      <div class="jornada-bar-container">
+        <div class="jornada-selector-group">
+          <label for="select-active-jornada">📅 Jornada:</label>
+          <select id="select-active-jornada" class="form-select jornada-select">
+            <!-- Renderizado dinámicamente -->
+          </select>
+        </div>
+        <div class="rules-badge-inline">
+          <span>🎯 Puntuación: <strong>1 acierto = 1pt</strong> | <strong>2 aciertos = 3pts</strong> | <strong>Pleno (3) = 5pts</strong></span>
+        </div>
+      </div>
+    </div>
 
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main-container">
@@ -122,27 +142,24 @@
           🏆 Clasificación General
         </button>
         <button type="button" class="tab-btn" data-tab="tab-pronosticos">
-          ✍️ Mi Quiniela 1X2
+          ✍️ Pronosticar Jornada (3 Partidos)
         </button>
         <!-- Pestañas solo para Admin -->
         <button type="button" class="tab-btn admin-only" data-tab="tab-resultados" style="display: none;">
           🎯 Resultados Reales (Admin)
         </button>
         <button type="button" class="tab-btn admin-only" data-tab="tab-gestion" style="display: none;">
-          ⚙️ Panel Administrador
+          ⚙️ Crear Jornadas & Admin
         </button>
       </nav>
 
-      <!-- TAB 1: CLASIFICACIÓN -->
+      <!-- TAB 1: CLASIFICACIÓN GENERAL & POR JORNADA -->
       <section id="tab-clasificacion" class="tab-content active">
         <div class="card-glass">
           <div class="card-header">
             <div>
-              <h2>🏆 Tabla de Clasificación</h2>
-              <p class="text-muted">Aciertos 1X2 y puntos de la jornada actual</p>
-            </div>
-            <div class="jornada-badge">
-              <span>Jornada LaLiga (1X2)</span>
+              <h2>🏆 Clasificación General Acumulada</h2>
+              <p class="text-muted">Puntuación total sumando todas las jornadas disputadas</p>
             </div>
           </div>
 
@@ -152,9 +169,11 @@
                 <tr>
                   <th># Pos</th>
                   <th>Participante</th>
-                  <th>Aciertos (Puntos)</th>
-                  <th>Efectividad</th>
-                  <th>Fallos</th>
+                  <th>Puntos Totales</th>
+                  <th>Plenos (3 de 3 = 5p)</th>
+                  <th>Dobles (2 de 3 = 3p)</th>
+                  <th>Simples (1 de 3 = 1p)</th>
+                  <th>Jornadas Jugadas</th>
                 </tr>
               </thead>
               <tbody id="ranking-tbody">
@@ -164,11 +183,16 @@
           </div>
         </div>
 
-        <!-- Matriz de pronósticos -->
+        <!-- Cuadro de la Jornada Seleccionada -->
         <div class="card-glass mt-4">
-          <h3>📊 Cuadro Comparativo de Quinielas</h3>
-          <p class="text-muted">Pronóstico 1X2 de cada participante vs el resultado real de cada partido</p>
-          <div class="table-responsive mt-3">
+          <div class="card-header">
+            <div>
+              <h3>📊 Detalle de la <span id="matrix-jornada-title">Jornada</span></h3>
+              <p class="text-muted">Pronósticos de los 3 partidos y puntos conseguidos en esta jornada</p>
+            </div>
+          </div>
+
+          <div class="table-responsive mt-2">
             <table class="table-matrix" id="matrix-table">
               <!-- Renderizado dinámico -->
             </table>
@@ -176,13 +200,13 @@
         </div>
       </section>
 
-      <!-- TAB 2: MI QUINIELA 1X2 (PRONÓSTICOS) -->
+      <!-- TAB 2: MI QUINIELA 1X2 (PRONÓSTICOS DE LOS 3 PARTIDOS) -->
       <section id="tab-pronosticos" class="tab-content">
         <div class="card-glass">
           <div class="card-header">
             <div>
-              <h2>✍️ Rellenar Mi Quiniela 1X2</h2>
-              <p class="text-muted">Selecciona <strong>1</strong> (Gana local), <strong>X</strong> (Empate) o <strong>2</strong> (Gana visitante)</p>
+              <h2>✍️ Mis Pronósticos: <span id="pronosticos-jornada-title">Jornada 1</span></h2>
+              <p class="text-muted">Elige <strong>1</strong> (Local), <strong>X</strong> (Empate) o <strong>2</strong> (Visitante) en los 3 partidos</p>
             </div>
             <div class="quick-fill-box">
               <button type="button" id="btn-random-fill" class="btn btn-outline btn-sm">🎲 Relleno Aleatorio</button>
@@ -191,11 +215,11 @@
           </div>
 
           <div id="quiniela-matches-list" class="quiniela-grid">
-            <!-- Partidos estilo quiniela 1X2 -->
+            <!-- 3 partidos de la jornada seleccionada -->
           </div>
 
           <div class="actions-footer">
-            <button type="button" id="btn-save-pronosticos" class="btn btn-primary btn-lg">💾 Guardar Mi Quiniela</button>
+            <button type="button" id="btn-save-pronosticos" class="btn btn-primary btn-lg">💾 Guardar Mis 3 Pronósticos</button>
           </div>
         </div>
       </section>
@@ -205,67 +229,113 @@
         <div class="card-glass">
           <div class="card-header">
             <div>
-              <h2>🎯 Resultados Reales Oficiales (Solo Administrador)</h2>
-              <p class="text-muted">Establece el signo ganador (1, X o 2) de cada partido para calcular la clasificación</p>
+              <h2>🎯 Resultados Oficiales: <span id="admin-results-jornada-title">Jornada 1</span></h2>
+              <p class="text-muted">Introduce el signo ganador (1, X o 2) de los 3 partidos de esta jornada</p>
             </div>
-            <button type="button" id="btn-save-real-results" class="btn btn-success">✅ Actualizar y Calcular Puntos</button>
+            <button type="button" id="btn-save-real-results" class="btn btn-success">✅ Guardar Resultados de la Jornada</button>
           </div>
 
           <div id="admin-results-list" class="quiniela-grid">
-            <!-- Lista de partidos para seleccionar el resultado 1X2 real -->
+            <!-- Lista de los 3 partidos para marcar signo oficial -->
           </div>
         </div>
       </section>
 
-      <!-- TAB 4: PANEL ADMINISTRADOR -->
+      <!-- TAB 4: PANEL ADMINISTRADOR (CREAR JORNADAS) -->
       <section id="tab-gestion" class="tab-content">
         <div class="grid-2-cols">
-          <!-- Gestión de Partidos -->
+          
+          <!-- Formulario Crear Nueva Jornada de 3 Partidos -->
           <div class="card-glass">
-            <h3>🏟️ Añadir Partido a la Quiniela</h3>
-            <p class="text-muted">Configura los partidos de la jornada</p>
-            <form id="form-add-match" class="form-stacked mt-3">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="match-local">Equipo Local (1)</label>
-                  <input type="text" id="match-local" class="form-input" placeholder="Ej: Real Madrid" required>
-                </div>
-                <div class="form-group">
-                  <label for="match-visitor">Equipo Visitante (2)</label>
-                  <input type="text" id="match-visitor" class="form-input" placeholder="Ej: Barcelona" required>
-                </div>
-              </div>
+            <h3>➕ Crear Nueva Jornada (3 Partidos)</h3>
+            <p class="text-muted">Crea una nueva jornada e introduce sus 3 partidos</p>
+            
+            <form id="form-create-jornada" class="form-stacked mt-3">
               <div class="form-group">
-                <label for="match-date">Fecha / Horario</label>
-                <input type="text" id="match-date" class="form-input" placeholder="Ej: Sábado 21:00">
+                <label for="new-jornada-name">Nombre de la Jornada</label>
+                <input type="text" id="new-jornada-name" class="form-input" placeholder="Ej: Jornada 2" required>
               </div>
-              <button type="submit" class="btn btn-primary">➕ Añadir Partido</button>
-            </form>
 
-            <div class="mt-4">
-              <h4>Partidos Actuales (<span id="matches-count">0</span>)</h4>
-              <ul id="admin-matches-manage-list" class="users-list mt-3">
-                <!-- Lista de partidos para borrar -->
-              </ul>
-            </div>
+              <!-- Partido 1 -->
+              <div class="match-setup-box">
+                <div class="match-setup-header">⚽ Partido 1</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Equipo Local</label>
+                    <input type="text" id="m1-local" class="form-input" placeholder="Ej: Real Madrid" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Equipo Visitante</label>
+                    <input type="text" id="m1-visitor" class="form-input" placeholder="Ej: Barcelona" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Horario (Opcional)</label>
+                  <input type="text" id="m1-date" class="form-input" placeholder="Ej: Sábado 21:00">
+                </div>
+              </div>
+
+              <!-- Partido 2 -->
+              <div class="match-setup-box">
+                <div class="match-setup-header">⚽ Partido 2</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Equipo Local</label>
+                    <input type="text" id="m2-local" class="form-input" placeholder="Ej: Atlético de Madrid" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Equipo Visitante</label>
+                    <input type="text" id="m2-visitor" class="form-input" placeholder="Ej: Sevilla" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Horario (Opcional)</label>
+                  <input type="text" id="m2-date" class="form-input" placeholder="Ej: Domingo 18:30">
+                </div>
+              </div>
+
+              <!-- Partido 3 -->
+              <div class="match-setup-box">
+                <div class="match-setup-header">⚽ Partido 3</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Equipo Local</label>
+                    <input type="text" id="m3-local" class="form-input" placeholder="Ej: Real Sociedad" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Equipo Visitante</label>
+                    <input type="text" id="m3-visitor" class="form-input" placeholder="Ej: Athletic Club" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Horario (Opcional)</label>
+                  <input type="text" id="m3-date" class="form-input" placeholder="Ej: Domingo 21:00">
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-lg mt-2">💾 Guardar y Publicar Jornada</button>
+            </form>
           </div>
 
-          <!-- Gestión de Usuarios y Conexión -->
+          <!-- Gestión de Jornadas Existentes y Participantes -->
           <div class="card-glass">
-            <h3>👥 Gestión de Participantes (<span id="user-count">0</span>)</h3>
-            <p class="text-muted">Lista de jugadores registrados en la porra</p>
+            <h3>📅 Jornadas Existentes (<span id="jornadas-count">0</span>)</h3>
+            <ul id="admin-jornadas-list" class="users-list mt-3">
+              <!-- Lista de jornadas creadas con botón de borrar -->
+            </ul>
+
+            <h3 class="mt-4">👥 Participantes (<span id="user-count">0</span>)</h3>
             <ul id="users-list" class="users-list mt-3">
               <!-- Lista de usuarios -->
             </ul>
 
             <div class="admin-danger-box mt-4">
-              <h4>⚙️ Acciones Globales</h4>
-              <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Cargar partidos demo en Google Sheets</p>
-              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button type="button" id="btn-admin-demo" class="btn btn-outline btn-sm">🔄 Cargar Partidos Demo</button>
-              </div>
+              <h4>🔄 Jornadas Demo</h4>
+              <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Cargar 3 jornadas de ejemplo de 3 partidos cada una</p>
+              <button type="button" id="btn-admin-demo" class="btn btn-outline btn-sm">Cargar 3 Jornadas Demo</button>
             </div>
           </div>
+
         </div>
       </section>
 
@@ -275,10 +345,10 @@
     <div id="toast" class="toast">Mensaje</div>
 
     <footer class="main-footer">
-      <p>Porra Quiniela LaLiga 1X2 • Google Sheets & GitHub Pages</p>
+      <p>Porra Quiniela LaLiga 1X2 • Sistema: 1 acierto = 1p | 2 aciertos = 3p | 3 aciertos = 5p</p>
     </footer>
   </div>
 
-  <script src="app.js?v=2.2"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
