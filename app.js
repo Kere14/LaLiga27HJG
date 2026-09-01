@@ -9,7 +9,7 @@
 
 // ⚠️ PEGA AQUÍ LA URL DE TU APLICACIÓN WEB DE GOOGLE APPS SCRIPT:
 // Ejemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpy93XmLhwfVr5Y1MnyK576lACu9eThHfTRwdXx5tszhF8VYMnNKYyPHiAwUHKlxAm/exec";
+const GOOGLE_SCRIPT_URL = "";
 
 // Usuario Administrador Base
 const DEFAULT_ADMIN = {
@@ -804,6 +804,16 @@ function renderQuinielaMatrix() {
 }
 
 // ==================== TAB 2: MI QUINIELA 1X2 ====================
+
+// Comprueba si el usuario actual ya tiene pronósticos guardados para la jornada activa
+function userHasLockedPredictions(jornadaId) {
+  if (!currentUser) return false;
+  const preds = state.predictions[currentUser.id] && state.predictions[currentUser.id][jornadaId];
+  if (!preds) return false;
+  // Se considera bloqueado si ha rellenado al menos 1 pronóstico
+  return Object.keys(preds).length > 0;
+}
+
 function renderMyQuinielaForm() {
   const container = document.getElementById("quiniela-matches-list");
   if (!container) return;
@@ -818,12 +828,40 @@ function renderMyQuinielaForm() {
   }
 
   const userPreds = (state.predictions[currentUser.id] && state.predictions[currentUser.id][activeJornada.id]) || {};
+  const isLocked = userHasLockedPredictions(activeJornada.id);
+
+  // Si está bloqueado, mostrar banner informativo
+  if (isLocked) {
+    const bannerDiv = document.createElement("div");
+    bannerDiv.className = "locked-banner";
+    bannerDiv.innerHTML = `
+      <span style="font-size: 1.4rem;">🔒</span>
+      <div>
+        <strong>Pronósticos enviados y bloqueados</strong>
+        <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 400;">
+          Tus pronósticos para ${activeJornada.name} ya han sido registrados y no se pueden modificar.
+        </div>
+      </div>
+      <span class="locked-badge-pill">BLOQUEADO</span>
+    `;
+    container.appendChild(bannerDiv);
+  }
+
+  // Ocultar/mostrar botones de acción según bloqueo
+  const btnSave = document.getElementById("btn-save-pronosticos");
+  const btnRand = document.getElementById("btn-random-fill");
+  const btnClear = document.getElementById("btn-clear-my-preds");
+
+  if (btnSave) btnSave.style.display = isLocked ? "none" : "";
+  if (btnRand) btnRand.style.display = isLocked ? "none" : "";
+  if (btnClear) btnClear.style.display = isLocked ? "none" : "";
 
   activeJornada.matches.forEach((match, idx) => {
     const row = document.createElement("div");
     row.className = "quiniela-row";
 
     const currentSign = userPreds[match.id] || null;
+    const lockedClass = isLocked ? " locked" : "";
 
     row.innerHTML = `
       <div class="quiniela-match-info">
@@ -836,22 +874,25 @@ function renderMyQuinielaForm() {
         <span class="match-timing">🕒 ${match.date || ''}</span>
       </div>
       <div class="quiniela-options" data-match="${match.id}">
-        <button type="button" class="btn-1x2 ${currentSign === '1' ? 'selected' : ''}" data-sign="1">1</button>
-        <button type="button" class="btn-1x2 ${currentSign === 'X' ? 'selected' : ''}" data-sign="X">X</button>
-        <button type="button" class="btn-1x2 ${currentSign === '2' ? 'selected' : ''}" data-sign="2">2</button>
+        <button type="button" class="btn-1x2${lockedClass} ${currentSign === '1' ? 'selected' : ''}" data-sign="1" ${isLocked ? 'disabled' : ''}>1</button>
+        <button type="button" class="btn-1x2${lockedClass} ${currentSign === 'X' ? 'selected' : ''}" data-sign="X" ${isLocked ? 'disabled' : ''}>X</button>
+        <button type="button" class="btn-1x2${lockedClass} ${currentSign === '2' ? 'selected' : ''}" data-sign="2" ${isLocked ? 'disabled' : ''}>2</button>
       </div>
     `;
 
-    const buttons = row.querySelectorAll(".btn-1x2");
-    buttons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        const isAlreadySelected = btn.classList.contains("selected");
-        buttons.forEach(b => b.classList.remove("selected"));
-        if (!isAlreadySelected) {
-          btn.classList.add("selected");
-        }
+    // Solo añadir listeners si NO está bloqueado
+    if (!isLocked) {
+      const buttons = row.querySelectorAll(".btn-1x2");
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const isAlreadySelected = btn.classList.contains("selected");
+          buttons.forEach(b => b.classList.remove("selected"));
+          if (!isAlreadySelected) {
+            btn.classList.add("selected");
+          }
+        });
       });
-    });
+    }
 
     container.appendChild(row);
   });
@@ -861,6 +902,12 @@ async function saveMyQuiniela() {
   if (!currentUser) return;
   const activeJornada = getActiveJornada();
   if (!activeJornada) return;
+
+  // BLOQUEO: Si ya tiene pronósticos guardados, rechazar
+  if (userHasLockedPredictions(activeJornada.id)) {
+    showToast("🔒 Tus pronósticos ya están bloqueados para esta jornada");
+    return;
+  }
 
   if (!state.predictions[currentUser.id]) {
     state.predictions[currentUser.id] = {};
@@ -881,11 +928,22 @@ async function saveMyQuiniela() {
     }
   });
 
+  // Validar que se han rellenado los 3 partidos antes de bloquear
+  if (Object.keys(newPredictions).length < 3) {
+    alert("⚠️ Debes rellenar los 3 pronósticos antes de enviar. Una vez enviados no podrás modificarlos.");
+    return;
+  }
+
+  if (!confirm(`¿Estás seguro? Una vez enviados, tus pronósticos de ${activeJornada.name} quedarán bloqueados y no podrás cambiarlos.`)) {
+    return;
+  }
+
   state.predictions[currentUser.id][activeJornada.id] = newPredictions;
   saveLocalState();
   renderRankingTable();
   renderQuinielaMatrix();
-  showToast(`¡Pronósticos de ${activeJornada.name} guardados en privado!`);
+  renderMyQuinielaForm(); // Re-renderiza para mostrar el estado bloqueado
+  showToast(`🔒 ¡Pronósticos de ${activeJornada.name} enviados y bloqueados!`);
 
   await sendToCloud("savePredictions", {
     userId: currentUser.id,
@@ -895,6 +953,12 @@ async function saveMyQuiniela() {
 }
 
 function randomFillMyQuiniela() {
+  const activeJornada = getActiveJornada();
+  if (activeJornada && userHasLockedPredictions(activeJornada.id)) {
+    showToast("🔒 Tus pronósticos ya están bloqueados para esta jornada");
+    return;
+  }
+
   const signs = ["1", "X", "2"];
   const rows = document.querySelectorAll("#quiniela-matches-list .quiniela-options");
   
@@ -911,6 +975,12 @@ function randomFillMyQuiniela() {
 }
 
 function clearMyQuiniela() {
+  const activeJornada = getActiveJornada();
+  if (activeJornada && userHasLockedPredictions(activeJornada.id)) {
+    showToast("🔒 Tus pronósticos ya están bloqueados para esta jornada");
+    return;
+  }
+
   const buttons = document.querySelectorAll("#quiniela-matches-list .btn-1x2");
   buttons.forEach(b => b.classList.remove("selected"));
   showToast("Pronósticos desmarcados");
