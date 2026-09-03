@@ -558,6 +558,60 @@ body {
   transform: scale(1.06);
 }
 
+.btn-1x2.locked {
+  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.btn-1x2.locked:not(.selected) {
+  opacity: 0.35;
+}
+
+/* JORNADA STATUS & LOCKED BANNER */
+.locked-banner {
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.locked-banner.status-open {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #4ade80;
+}
+
+.locked-banner.status-closed {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.locked-badge-pill {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.locked-badge-pill.status-open {
+  background: rgba(16, 185, 129, 0.25);
+  color: #4ade80;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.locked-badge-pill.status-closed {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
 @media (max-width: 700px) {
   .quiniela-row {
     flex-direction: column;

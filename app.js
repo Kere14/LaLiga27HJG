@@ -9,7 +9,7 @@
 
 // ⚠️ PEGA AQUÍ LA URL DE TU APLICACIÓN WEB DE GOOGLE APPS SCRIPT:
 // Ejemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpy93XmLhwfVr5Y1MnyK576lACu9eThHfTRwdXx5tszhF8VYMnNKYyPHiAwUHKlxAm/exec";
+const GOOGLE_SCRIPT_URL = "";
 
 // Usuario Administrador Base
 const DEFAULT_ADMIN = {
@@ -282,6 +282,37 @@ function evaluateUserJornada(userId, jornada) {
     isDoble: hits === 2,
     isSimple: hits === 1
   };
+}
+
+/**
+ * Determina si una jornada está bloqueada / iniciada:
+ * 1. Si el administrador la cerró manualmente (jornada.isClosed === true).
+ * 2. Si algún partido ya tiene resultado oficial (partidos en juego o finalizados).
+ * 3. Si se definió una fecha/hora límite (deadline) y la hora actual la ha superado.
+ */
+function isJornadaLocked(jornada) {
+  if (!jornada) return false;
+
+  // 1. Cierre manual por el administrador
+  if (jornada.isClosed === true || jornada.isClosed === "true") {
+    return true;
+  }
+
+  // 2. Si ya hay algún resultado oficial registrado
+  const hasResults = (jornada.matches || []).some(m => m.signResult !== null && m.signResult !== "" && m.signResult !== undefined);
+  if (hasResults) {
+    return true;
+  }
+
+  // 3. Si la fecha límite ya ha pasado
+  if (jornada.deadline) {
+    const deadlineTime = new Date(jornada.deadline).getTime();
+    if (!isNaN(deadlineTime) && Date.now() >= deadlineTime) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // ==================== SESIÓN Y LOGIN ====================
@@ -564,6 +595,8 @@ function initAppEventListeners() {
       if (!currentUser || currentUser.role !== "admin") return;
 
       const jName = document.getElementById("new-jornada-name").value.trim();
+      const jDeadline = document.getElementById("new-jornada-deadline") ? document.getElementById("new-jornada-deadline").value : null;
+
       const m1Local = document.getElementById("m1-local").value.trim();
       const m1Visitor = document.getElementById("m1-visitor").value.trim();
       const m1Date = document.getElementById("m1-date").value.trim();
@@ -585,6 +618,8 @@ function initAppEventListeners() {
       const newJornada = {
         id: jId,
         name: jName,
+        deadline: jDeadline || null,
+        isClosed: false,
         matches: [
           { id: `${jId}_m1`, local: m1Local, visitor: m1Visitor, date: m1Date || "Por determinar", signResult: null },
           { id: `${jId}_m2`, local: m2Local, visitor: m2Visitor, date: m2Date || "Por determinar", signResult: null },
@@ -781,17 +816,18 @@ function renderQuinielaMatrix() {
         tbodyHtml += `<td><span class="text-muted">-</span></td>`;
       } else {
         // REGLA DE PRIVACIDAD:
-        // Solo el propio jugador o el Admin pueden ver el pronóstico antes o durante.
-        // Los demás jugadores ven un icono de candado 🔒 mientras el partido no tenga resultado.
-        if (isMe || isAdmin || hasResult) {
+        // Solo el propio jugador o el Admin pueden ver el pronóstico mientras la jornada esté abierta y sin resultado.
+        // Si la jornada ya se ha cerrado/iniciado o el partido tiene resultado, se muestran todos los pronósticos.
+        const isLocked = isJornadaLocked(activeJornada);
+        if (isMe || isAdmin || hasResult || isLocked) {
           let badgeClass = "sign-pending";
           if (hasResult) {
             badgeClass = (String(predSign).trim() === String(match.signResult).trim()) ? "sign-hit" : "sign-miss";
           }
           tbodyHtml += `<td><span class="sign-badge ${badgeClass}">${predSign}</span></td>`;
         } else {
-          // Oculto para otros participantes antes de jugarse
-          tbodyHtml += `<td><span class="sign-badge sign-hidden" title="Pronóstico privado hasta que se juegue el partido">🔒</span></td>`;
+          // Oculto para otros participantes antes del inicio de la jornada
+          tbodyHtml += `<td><span class="sign-badge sign-hidden" title="Pronóstico privado hasta el inicio de la jornada">🔒</span></td>`;
         }
       }
     });
@@ -804,16 +840,6 @@ function renderQuinielaMatrix() {
 }
 
 // ==================== TAB 2: MI QUINIELA 1X2 ====================
-
-// Comprueba si el usuario actual ya tiene pronósticos guardados para la jornada activa
-function userHasLockedPredictions(jornadaId) {
-  if (!currentUser) return false;
-  const preds = state.predictions[currentUser.id] && state.predictions[currentUser.id][jornadaId];
-  if (!preds) return false;
-  // Se considera bloqueado si ha rellenado al menos 1 pronóstico
-  return Object.keys(preds).length > 0;
-}
-
 function renderMyQuinielaForm() {
   const container = document.getElementById("quiniela-matches-list");
   if (!container) return;
@@ -828,31 +854,54 @@ function renderMyQuinielaForm() {
   }
 
   const userPreds = (state.predictions[currentUser.id] && state.predictions[currentUser.id][activeJornada.id]) || {};
-  const isLocked = userHasLockedPredictions(activeJornada.id);
+  const hasSavedPreds = Object.keys(userPreds).length > 0;
+  const isLocked = isJornadaLocked(activeJornada);
 
-  // Si está bloqueado, mostrar banner informativo
+  // Banner informativo según estado de la jornada
+  const bannerDiv = document.createElement("div");
   if (isLocked) {
-    const bannerDiv = document.createElement("div");
-    bannerDiv.className = "locked-banner";
+    bannerDiv.className = "locked-banner status-closed";
     bannerDiv.innerHTML = `
       <span style="font-size: 1.4rem;">🔒</span>
-      <div>
-        <strong>Pronósticos enviados y bloqueados</strong>
+      <div style="flex: 1;">
+        <strong>Jornada Iniciada • Pronósticos Cerrados</strong>
         <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 400;">
-          Tus pronósticos para ${activeJornada.name} ya han sido registrados y no se pueden modificar.
+          Esta jornada ya ha comenzado o ha sido cerrada por el administrador. Tus pronósticos registrados son definitivos.
         </div>
       </div>
-      <span class="locked-badge-pill">BLOQUEADO</span>
+      <span class="locked-badge-pill status-closed">CERRADA</span>
     `;
-    container.appendChild(bannerDiv);
+  } else {
+    bannerDiv.className = "locked-banner status-open";
+    let deadlineText = "";
+    if (activeJornada.deadline) {
+      try {
+        const d = new Date(activeJornada.deadline);
+        deadlineText = ` • Cierre automático: ${d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+      } catch (e) {}
+    }
+    bannerDiv.innerHTML = `
+      <span style="font-size: 1.4rem;">🟢</span>
+      <div style="flex: 1;">
+        <strong>Pronósticos Abiertos</strong>
+        <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 400;">
+          ${hasSavedPreds ? '✅ Tienes pronósticos guardados. Puedes cambiarlos todas las veces que quieras y volver a guardar antes del inicio de la jornada.' : 'Elige tus signos 1X2. Podrás modificarlos tantas veces como quieras hasta el inicio de la jornada.'}${deadlineText}
+        </div>
+      </div>
+      <span class="locked-badge-pill status-open">ABIERTA</span>
+    `;
   }
+  container.appendChild(bannerDiv);
 
   // Ocultar/mostrar botones de acción según bloqueo
   const btnSave = document.getElementById("btn-save-pronosticos");
   const btnRand = document.getElementById("btn-random-fill");
   const btnClear = document.getElementById("btn-clear-my-preds");
 
-  if (btnSave) btnSave.style.display = isLocked ? "none" : "";
+  if (btnSave) {
+    btnSave.style.display = isLocked ? "none" : "";
+    btnSave.textContent = hasSavedPreds ? "💾 Actualizar Mis Pronósticos" : "💾 Guardar Mis 3 Pronósticos";
+  }
   if (btnRand) btnRand.style.display = isLocked ? "none" : "";
   if (btnClear) btnClear.style.display = isLocked ? "none" : "";
 
@@ -880,7 +929,7 @@ function renderMyQuinielaForm() {
       </div>
     `;
 
-    // Solo añadir listeners si NO está bloqueado
+    // Permitir cambios interactivos mientras la jornada esté abierta
     if (!isLocked) {
       const buttons = row.querySelectorAll(".btn-1x2");
       buttons.forEach(btn => {
@@ -903,9 +952,10 @@ async function saveMyQuiniela() {
   const activeJornada = getActiveJornada();
   if (!activeJornada) return;
 
-  // BLOQUEO: Si ya tiene pronósticos guardados, rechazar
-  if (userHasLockedPredictions(activeJornada.id)) {
-    showToast("🔒 Tus pronósticos ya están bloqueados para esta jornada");
+  // Si la jornada ya empezó o está cerrada, rechazar
+  if (isJornadaLocked(activeJornada)) {
+    alert("🔒 Esta jornada ya ha comenzado y los pronósticos están cerrados.");
+    renderMyQuinielaForm();
     return;
   }
 
@@ -928,13 +978,9 @@ async function saveMyQuiniela() {
     }
   });
 
-  // Validar que se han rellenado los 3 partidos antes de bloquear
+  // Validar que se han rellenado los 3 partidos
   if (Object.keys(newPredictions).length < 3) {
-    alert("⚠️ Debes rellenar los 3 pronósticos antes de enviar. Una vez enviados no podrás modificarlos.");
-    return;
-  }
-
-  if (!confirm(`¿Estás seguro? Una vez enviados, tus pronósticos de ${activeJornada.name} quedarán bloqueados y no podrás cambiarlos.`)) {
+    alert("⚠️ Debes seleccionar tu pronóstico (1, X o 2) en los 3 partidos antes de guardar.");
     return;
   }
 
@@ -942,8 +988,8 @@ async function saveMyQuiniela() {
   saveLocalState();
   renderRankingTable();
   renderQuinielaMatrix();
-  renderMyQuinielaForm(); // Re-renderiza para mostrar el estado bloqueado
-  showToast(`🔒 ¡Pronósticos de ${activeJornada.name} enviados y bloqueados!`);
+  renderMyQuinielaForm();
+  showToast(`✅ ¡Pronósticos de ${activeJornada.name} guardados! (Puedes cambiarlos hasta el inicio de la jornada)`);
 
   await sendToCloud("savePredictions", {
     userId: currentUser.id,
@@ -954,8 +1000,8 @@ async function saveMyQuiniela() {
 
 function randomFillMyQuiniela() {
   const activeJornada = getActiveJornada();
-  if (activeJornada && userHasLockedPredictions(activeJornada.id)) {
-    showToast("🔒 Tus pronósticos ya están bloqueados para esta jornada");
+  if (activeJornada && isJornadaLocked(activeJornada)) {
+    showToast("🔒 Los pronósticos están cerrados para esta jornada");
     return;
   }
 
@@ -976,8 +1022,8 @@ function randomFillMyQuiniela() {
 
 function clearMyQuiniela() {
   const activeJornada = getActiveJornada();
-  if (activeJornada && userHasLockedPredictions(activeJornada.id)) {
-    showToast("🔒 Tus pronósticos ya están bloqueados para esta jornada");
+  if (activeJornada && isJornadaLocked(activeJornada)) {
+    showToast("🔒 Los pronósticos están cerrados para esta jornada");
     return;
   }
 
@@ -1074,16 +1120,48 @@ function renderAdminManageTab() {
     (state.jornadas || []).forEach((j, idx) => {
       const li = document.createElement("li");
       li.className = "user-list-item";
+      const locked = isJornadaLocked(j);
+      let deadlineInfo = "";
+      if (j.deadline) {
+        try {
+          const d = new Date(j.deadline);
+          deadlineInfo = `<span style="font-size: 0.75rem; color: #38bdf8; display: block;">🕒 Cierre: ${d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>`;
+        } catch (e) {}
+      }
+
       li.innerHTML = `
-        <div>
-          <strong>${j.name}</strong>
-          <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">
+        <div style="flex: 1; margin-right: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <strong>${j.name}</strong>
+            <span class="locked-badge-pill ${locked ? 'status-closed' : 'status-open'}">${locked ? '🔒 CERRADA' : '🟢 ABIERTA'}</span>
+          </div>
+          <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 2px;">
             ${j.matches.map(m => `${m.local}-${m.visitor} [${m.signResult || '?'}]`).join(' | ')}
           </span>
+          ${deadlineInfo}
         </div>
-        <button type="button" class="btn btn-danger-outline btn-sm btn-delete-jornada" data-jornada="${j.id}">🗑️ Borrar</button>
+        <div style="display: flex; gap: 0.35rem; align-items: center;">
+          <button type="button" class="btn btn-outline btn-sm btn-toggle-jornada-lock" data-jornada="${j.id}" title="Alternar cierre manual de pronósticos">
+            ${j.isClosed ? '🔓 Abrir' : '🔒 Cerrar'}
+          </button>
+          <button type="button" class="btn btn-danger-outline btn-sm btn-delete-jornada" data-jornada="${j.id}">🗑️</button>
+        </div>
       `;
       jornadasList.appendChild(li);
+    });
+
+    jornadasList.querySelectorAll(".btn-toggle-jornada-lock").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const jId = e.currentTarget.getAttribute("data-jornada");
+        const jornada = state.jornadas.find(j => j.id === jId);
+        if (jornada) {
+          jornada.isClosed = !jornada.isClosed;
+          saveLocalState();
+          renderAllViews();
+          showToast(jornada.isClosed ? `🔒 ${jornada.name} cerrada para pronósticos` : `🔓 ${jornada.name} abierta para pronósticos`);
+          await sendToCloud("toggleJornadaLock", { jornadaId: jId, isClosed: jornada.isClosed });
+        }
+      });
     });
 
     jornadasList.querySelectorAll(".btn-delete-jornada").forEach(btn => {
